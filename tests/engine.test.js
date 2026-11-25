@@ -204,12 +204,28 @@ test('Graph BFS and DFS traversals on undirected and directed graphs', () => {
 
   const bfs = Graph.runBfs(g, 'A');
   assert.deepEqual(bfs.order, ['A', 'B', 'C', 'D', 'E', 'F']);
-  assert.equal(bfs.steps.at(-1).frontier.length, 0);
+  assert.equal(bfs.treeEdges.length, 5);
 
   const dfs = Graph.runDfs(g, 'A');
   assert.deepEqual(dfs.order, ['A', 'B', 'D', 'E', 'F', 'C']);
+  assert.equal(dfs.treeEdges.length, 5);
 
-  const dg = Graph.parseGraph('0->1, 0->2, 1->3, 2->3', true);
-  assert.deepEqual(Graph.runBfs(dg, '0').order, ['0', '1', '2', '3']);
-  assert.deepEqual(Graph.runDfs(dg, '0').order, ['0', '1', '3', '2']);
+  // Textbook BFS v1..v8 spanning tree
+  const gBfs = Graph.parseGraph('v1-v2, v1-v3, v2-v4, v2-v5, v3-v6, v3-v7, v4-v8, v5-v8, v6-v8, v7-v8', false);
+  const resBfs = Graph.runBfs(gBfs, 'v1');
+  assert.deepEqual(resBfs.order, ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8']);
+  assert.equal(resBfs.treeEdges.length, 7);
+
+  // Textbook DFS directed graph starting at J
+  const gDfs = Graph.parseGraph('A->F, A->B, F->D, B->C, B->G, C->F, D->C, E->C, E->D, E->J, G->C, G->E, J->D, J->K, K->E, K->G', true);
+  const resDfs = Graph.runDfs(gDfs, 'J');
+  assert.deepEqual(resDfs.order, ['J', 'D', 'C', 'F', 'K', 'E', 'G']);
+  assert.deepEqual(resDfs.treeEdges, [
+    { from: 'J', to: 'D' },
+    { from: 'D', to: 'C' },
+    { from: 'C', to: 'F' },
+    { from: 'J', to: 'K' },
+    { from: 'K', to: 'E' },
+    { from: 'K', to: 'G' }
+  ]);
 });

@@ -1,5 +1,5 @@
 /**
- * Graph Parser, BFS (Queue), DFS (Stack), Step Tracer, and SVG Renderer
+ * Graph Parser, BFS (Queue), DFS (Recursive/Stack), Spanning Tree, Step Tracer, and SVG Renderer
  * Works in Browser globals (`window.GraphEngine`) and Node.js (`module.exports`).
  */
 (function (root, factory) {
@@ -17,7 +17,7 @@
   function parseGraph(input, directed = false) {
     const raw = (input || '').trim();
     if (!raw) {
-      return { nodes: [], edges: [], adj: new Map() };
+      return { nodes: [], edges: [], adj: new Map(), directed };
     }
 
     const parts = raw
@@ -58,7 +58,6 @@
         continue;
       }
 
-      // Space-separated pair like "A B"
       const spaceTokens = part.split(/\s+/).filter(Boolean);
       if (spaceTokens.length === 2) {
         addEdge(spaceTokens[0], spaceTokens[1]);
@@ -72,12 +71,9 @@
       throw new Error(`Invalid edge format '${part}'. Use 'A-B' or 'A->B'.`);
     }
 
-    // Sort adjacency lists naturally (numeric if all numeric, else alphabetical)
+    // Sort nodes & adjacency lists naturally (supports v1..v10, 0..9, A..Z)
     const nodes = Array.from(nodeSet);
-    const allNum = nodes.every((n) => /^-?\d+$/.test(n));
-    const cmp = allNum
-      ? (a, b) => Number(a) - Number(b)
-      : (a, b) => a.localeCompare(b);
+    const cmp = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 
     nodes.sort(cmp);
     for (const list of adj.values()) {
@@ -88,110 +84,106 @@
   }
 
   /**
-   * Run BFS (Queue) from startNode, recording step-by-step snapshots.
+   * Run BFS (Queue) from startNode, recording textbook table rows and spanning tree edges.
    */
   function runBfs(graph, startNode) {
-    if (!graph || graph.nodes.length === 0) return { order: [], steps: [] };
+    if (!graph || graph.nodes.length === 0) {
+      return { start: null, order: [], treeEdges: [], steps: [] };
+    }
     const start = graph.adj.has(startNode) ? startNode : graph.nodes[0];
 
     const visited = new Set([start]);
     const queue = [start];
     const order = [];
+    const treeEdges = [];
     const steps = [];
-
-    steps.push({
-      step: 1,
-      current: start,
-      action: `Enqueue start node '${start}' and mark visited`,
-      frontier: [...queue],
-      visited: [...visited],
-      order: [...order]
-    });
 
     while (queue.length > 0) {
       const curr = queue.shift();
       order.push(curr);
+
       const neighbors = graph.adj.get(curr) || [];
-      const newlyAdded = [];
+      const newlyDiscovered = [];
 
       for (const nb of neighbors) {
         if (!visited.has(nb)) {
           visited.add(nb);
           queue.push(nb);
-          newlyAdded.push(nb);
+          newlyDiscovered.push(nb);
+          treeEdges.push({ from: curr, to: nb });
         }
       }
 
+      // Remaining unvisited queue (in textbook reverse/front-on-right or standard order)
+      const queueDisplay = [...queue];
+
       steps.push({
         step: steps.length + 1,
+        visitedFlag: 'T',
         current: curr,
+        adjacent: queueDisplay,
+        newlyDiscovered,
         action:
-          newlyAdded.length > 0
-            ? `Dequeue '${curr}', visit, enqueue unvisited neighbors: ${newlyAdded.join(', ')}`
-            : `Dequeue '${curr}', visit (no unvisited neighbors)`,
+          newlyDiscovered.length > 0
+            ? `Visit '${curr}' (T) → enqueue ${newlyDiscovered.join(', ')}`
+            : `Visit '${curr}' (T) → no new neighbors`,
         frontier: [...queue],
         visited: [...visited],
-        order: [...order]
+        order: [...order],
+        treeEdges: [...treeEdges]
       });
     }
 
-    return { start, order, steps };
+    return { start, order, treeEdges, steps };
   }
 
   /**
-   * Run iterative DFS (Stack) from startNode, recording step-by-step snapshots.
+   * Run DFS from startNode, recording textbook stack frames and spanning tree edges.
    */
   function runDfs(graph, startNode) {
-    if (!graph || graph.nodes.length === 0) return { order: [], steps: [] };
+    if (!graph || graph.nodes.length === 0) {
+      return { start: null, order: [], treeEdges: [], steps: [] };
+    }
     const start = graph.adj.has(startNode) ? startNode : graph.nodes[0];
 
     const visited = new Set();
-    const stack = [start];
     const order = [];
+    const treeEdges = [];
     const steps = [];
 
-    steps.push({
-      step: 1,
-      current: start,
-      action: `Push start node '${start}' onto stack`,
-      frontier: [...stack],
-      visited: [...visited],
-      order: [...order]
-    });
+    function dfs(u) {
+      visited.add(u);
+      order.push(u);
 
-    while (stack.length > 0) {
-      const curr = stack.pop();
-      if (visited.has(curr)) {
-        continue;
-      }
-      visited.add(curr);
-      order.push(curr);
-
-      const neighbors = graph.adj.get(curr) || [];
-      const pushed = [];
-      // Push in reverse order so smallest/first neighbor is popped first
-      for (let i = neighbors.length - 1; i >= 0; i -= 1) {
-        const nb = neighbors[i];
-        if (!visited.has(nb)) {
-          stack.push(nb);
-          pushed.push(nb);
-        }
-      }
+      const neighbors = graph.adj.get(u) || [];
+      const unvisitedNow = neighbors.filter((nb) => !visited.has(nb));
 
       steps.push({
         step: steps.length + 1,
-        current: curr,
+        visitedFlag: 'T',
+        current: u,
+        adjacent: neighbors,
+        unvisitedNeighbors: unvisitedNow,
         action:
-          pushed.length > 0
-            ? `Pop '${curr}', mark visited, push neighbors: ${[...pushed].reverse().join(', ')}`
-            : `Pop '${curr}', mark visited (no unvisited neighbors)`,
-        frontier: [...stack],
+          unvisitedNow.length > 0
+            ? `Visit '${u}' (T) → unvisited adjacent: ${unvisitedNow.join(', ')}`
+            : `Visit '${u}' (T) → backtrack`,
+        frontier: unvisitedNow,
         visited: [...visited],
-        order: [...order]
+        order: [...order],
+        treeEdges: [...treeEdges]
       });
+
+      for (const nb of neighbors) {
+        if (!visited.has(nb)) {
+          treeEdges.push({ from: u, to: nb });
+          dfs(nb);
+        }
+      }
     }
 
-    return { start, order, steps };
+    dfs(start);
+    return { start, order, treeEdges, steps };
   }
 
   /**
@@ -201,14 +193,13 @@
     if (!graph || graph.nodes.length === 0) return null;
 
     const count = graph.nodes.length;
-    const width = 560;
-    const height = count <= 2 ? 220 : 320;
+    const width = 480;
+    const height = count <= 2 ? 210 : 300;
     const cx = width / 2;
-    const cy = height / 2;
-    const rx = count <= 2 ? 120 : Math.min(200, 95 + count * 14);
-    const ry = count <= 2 ? 0 : Math.min(115, 65 + count * 7);
+    const cy = height / 2 + 6;
+    const rx = count <= 2 ? 110 : Math.min(180, 88 + count * 12);
+    const ry = count <= 2 ? 0 : Math.min(108, 60 + count * 6);
 
-    // Put startNode first so it sits cleanly at the top
     const ordered = [...graph.nodes];
     const sIdx = ordered.indexOf(startNode);
     if (sIdx > 0) {
@@ -229,6 +220,7 @@
     return {
       width,
       height,
+      startNode: ordered[0],
       nodes: ordered.map((id) => posMap.get(id)),
       posMap,
       edges: graph.edges,
@@ -244,6 +236,24 @@
     return el;
   }
 
+  function appendArrowMarker(svg, id) {
+    const defs = createSvgEl('defs');
+    const marker = createSvgEl('marker', {
+      id,
+      viewBox: '0 0 10 10',
+      refX: '9',
+      refY: '5',
+      markerWidth: '6',
+      markerHeight: '6',
+      orient: 'auto-start-reverse'
+    });
+    marker.appendChild(
+      createSvgEl('path', { d: 'M 0 1 L 10 5 L 0 9 z', fill: 'currentColor', class: 'graph-arrow-head' })
+    );
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+  }
+
   function renderSvg(container, layout, state = {}) {
     container.innerHTML = '';
     if (!layout) return;
@@ -254,25 +264,11 @@
       height: layout.height,
       class: 'ast-svg',
       role: 'img',
-      'aria-label': 'Graph diagram'
+      'aria-label': 'Original graph diagram'
     });
 
     if (layout.directed) {
-      const defs = createSvgEl('defs');
-      const marker = createSvgEl('marker', {
-        id: 'graph-arrow',
-        viewBox: '0 0 10 10',
-        refX: '9',
-        refY: '5',
-        markerWidth: '6',
-        markerHeight: '6',
-        orient: 'auto-start-reverse'
-      });
-      marker.appendChild(
-        createSvgEl('path', { d: 'M 0 1 L 10 5 L 0 9 z', fill: 'currentColor', class: 'graph-arrow-head' })
-      );
-      defs.appendChild(marker);
-      svg.appendChild(defs);
+      appendArrowMarker(svg, 'graph-arrow');
     }
 
     const orderList = state.order || [];
@@ -280,6 +276,7 @@
     orderList.forEach((id, idx) => orderIndex.set(id, idx + 1));
     const currentId = state.current || null;
     const frontierSet = new Set(state.frontier || []);
+    const treeEdgeSet = new Set((state.treeEdges || []).map((e) => `${e.from}->${e.to}`));
 
     const edgeGroup = createSvgEl('g', { class: 'ast-edges' });
     for (const e of layout.edges) {
@@ -296,16 +293,16 @@
       const x2 = p2.x - (dx / dist) * r;
       const y2 = p2.y - (dy / dist) * r;
 
-      const isActiveEdge =
-        (orderIndex.has(e.from) && orderIndex.has(e.to)) &&
-        (e.from === currentId || e.to === currentId);
+      const isTreeEdge =
+        treeEdgeSet.has(`${e.from}->${e.to}`) ||
+        (!layout.directed && treeEdgeSet.has(`${e.to}->${e.from}`));
 
       const line = createSvgEl('line', {
         x1,
         y1,
         x2,
         y2,
-        class: `ast-edge${isActiveEdge ? ' is-highlighted' : ''}`,
+        class: `ast-edge${isTreeEdge ? ' is-highlighted' : ''}`,
         ...(layout.directed ? { 'marker-end': 'url(#graph-arrow)' } : {})
       });
       edgeGroup.appendChild(line);
@@ -327,7 +324,7 @@
         transform: `translate(${n.x}, ${n.y})`
       });
 
-      const r = Math.max(19, n.id.length * 5 + 13);
+      const r = Math.max(19, n.id.length * 4.5 + 13);
       g.appendChild(createSvgEl('circle', { r, cx: 0, cy: 0, class: 'ast-node-shape' }));
 
       const text = createSvgEl('text', {
@@ -339,6 +336,18 @@
       });
       text.textContent = n.id;
       g.appendChild(text);
+
+      // Start badge on startNode
+      if (n.id === layout.startNode) {
+        const startLabel = createSvgEl('text', {
+          x: 0,
+          y: -r - 10,
+          'text-anchor': 'middle',
+          class: 'graph-start-tag'
+        });
+        startLabel.textContent = 'START';
+        g.appendChild(startLabel);
+      }
 
       if (orderIndex.has(n.id)) {
         const bx = r * 0.78;
@@ -369,11 +378,135 @@
     container.appendChild(svg);
   }
 
+  /**
+   * Render the BFS or DFS Spanning Tree SVG cleanly in hierarchical levels.
+   */
+  function renderSpanningTreeSvg(container, startNode, treeEdges = [], directed = false, currentId = null) {
+    container.innerHTML = '';
+    if (!startNode) return;
+
+    // Build tree adjacency from treeEdges
+    const childrenMap = new Map();
+    childrenMap.set(startNode, []);
+    for (const e of treeEdges) {
+      if (!childrenMap.has(e.from)) childrenMap.set(e.from, []);
+      if (!childrenMap.has(e.to)) childrenMap.set(e.to, []);
+      childrenMap.get(e.from).push(e.to);
+    }
+
+    // Assign leaf-order x positions for clean non-crossing tree layout
+    const nodes = [];
+    const edges = [];
+    let xCursor = 0;
+    let maxDepth = 0;
+
+    function place(id, depth) {
+      maxDepth = Math.max(maxDepth, depth);
+      const kids = childrenMap.get(id) || [];
+      let myX;
+      if (kids.length === 0) {
+        myX = xCursor++;
+      } else {
+        const childXs = [];
+        for (const k of kids) {
+          edges.push({ from: id, to: k });
+          childXs.push(place(k, depth + 1));
+        }
+        myX = (childXs[0] + childXs[childXs.length - 1]) / 2;
+      }
+      nodes.push({ id, depth, xIndex: myX });
+      return myX;
+    }
+
+    place(startNode, 0);
+
+    const totalCols = Math.max(1, xCursor);
+    const colGap = totalCols > 8 ? 56 : 68;
+    const rowGap = 72;
+    const padX = 44;
+    const padY = 40;
+    const width = Math.max(320, (totalCols - 1) * colGap + padX * 2);
+    const height = Math.max(170, maxDepth * rowGap + padY * 2);
+    const naturalSpan = (totalCols - 1) * colGap;
+    const startX = (width - naturalSpan) / 2;
+
+    const posMap = new Map();
+    for (const n of nodes) {
+      n.x = startX + n.xIndex * colGap;
+      n.y = padY + n.depth * rowGap;
+      posMap.set(n.id, n);
+    }
+
+    const svg = createSvgEl('svg', {
+      viewBox: `0 0 ${width} ${height}`,
+      width,
+      height,
+      class: 'ast-svg',
+      role: 'img',
+      'aria-label': 'Spanning tree diagram'
+    });
+
+    if (directed) {
+      appendArrowMarker(svg, 'tree-arrow');
+    }
+
+    const edgeGroup = createSvgEl('g', { class: 'ast-edges' });
+    for (const e of edges) {
+      const p1 = posMap.get(e.from);
+      const p2 = posMap.get(e.to);
+      const r = 19;
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const x1 = p1.x + (dx / dist) * r;
+      const y1 = p1.y + (dy / dist) * r;
+      const x2 = p2.x - (dx / dist) * r;
+      const y2 = p2.y - (dy / dist) * r;
+
+      edgeGroup.appendChild(
+        createSvgEl('line', {
+          x1,
+          y1,
+          x2,
+          y2,
+          class: 'ast-edge is-highlighted',
+          ...(directed ? { 'marker-end': 'url(#tree-arrow)' } : {})
+        })
+      );
+    }
+    svg.appendChild(edgeGroup);
+
+    const nodeGroup = createSvgEl('g', { class: 'ast-nodes' });
+    for (const n of nodes) {
+      const isCurrent = n.id === currentId;
+      const g = createSvgEl('g', {
+        class: `ast-node is-operand${isCurrent ? ' is-current' : ' is-visited'}`,
+        transform: `translate(${n.x}, ${n.y})`
+      });
+      const r = Math.max(18, n.id.length * 4.5 + 12);
+      g.appendChild(createSvgEl('circle', { r, cx: 0, cy: 0, class: 'ast-node-shape' }));
+      const text = createSvgEl('text', {
+        x: 0,
+        y: 1,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'central',
+        class: 'ast-node-label'
+      });
+      text.textContent = n.id;
+      g.appendChild(text);
+      nodeGroup.appendChild(g);
+    }
+
+    svg.appendChild(nodeGroup);
+    container.appendChild(svg);
+  }
+
   return {
     parseGraph,
     runBfs,
     runDfs,
     buildLayout,
-    renderSvg
+    renderSvg,
+    renderSpanningTreeSvg
   };
 });

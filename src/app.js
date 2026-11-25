@@ -216,7 +216,13 @@
     graphFrontierLabel: document.getElementById('graphFrontierLabel'),
     graphFrontierCode: document.getElementById('graphFrontierCode'),
     graphOrderCode: document.getElementById('graphOrderCode'),
-    graphSvgContainer: document.getElementById('graphSvgContainer')
+    graphSvgContainer: document.getElementById('graphSvgContainer'),
+    graphSpanningLabel: document.getElementById('graphSpanningLabel'),
+    graphSpanningSvgContainer: document.getElementById('graphSpanningSvgContainer'),
+    graphBfsTableWrap: document.getElementById('graphBfsTableWrap'),
+    graphBfsTableBody: document.getElementById('graphBfsTableBody'),
+    graphDfsStacksWrap: document.getElementById('graphDfsStacksWrap'),
+    graphDfsStacksGrid: document.getElementById('graphDfsStacksGrid')
   };
 
   let historySaveTimer = null;
@@ -759,6 +765,9 @@
       if (!chip) return;
       state.graphInput = chip.dataset.edges;
       state.graphDirected = chip.dataset.dir === 'directed';
+      if (chip.dataset.start) {
+        state.graphStart = chip.dataset.start;
+      }
       el.graphEdgeInput.value = state.graphInput;
       updateSegmented(el.graphDirGroup, 'graphDir', state.graphDirected ? 'directed' : 'undirected');
       recomputeGraph();
@@ -1856,7 +1865,13 @@
 
   function renderGraphStep() {
     const res = state.graphAlgo === 'bfs' ? state.graphBfsRes : state.graphDfsRes;
-    el.graphFrontierLabel.textContent = state.graphAlgo === 'bfs' ? 'Queue' : 'Stack';
+    el.graphFrontierLabel.textContent = state.graphAlgo === 'bfs' ? 'Queue' : 'Unvisited Adj';
+    el.graphSpanningLabel.textContent =
+      state.graphAlgo === 'bfs' ? 'BFS Spanning Tree' : 'DFS Spanning Tree';
+
+    const isBfs = state.graphAlgo === 'bfs';
+    el.graphBfsTableWrap.classList.toggle('is-hidden', !isBfs);
+    el.graphDfsStacksWrap.classList.toggle('is-hidden', isBfs);
 
     if (!state.graphLayout || !res || res.steps.length === 0) {
       el.graphStepCounter.textContent = '0 / 0';
@@ -1865,6 +1880,10 @@
       el.graphOrderCode.textContent = '—';
       el.graphSvgContainer.innerHTML =
         '<p class="empty-muted">Enter edges like <code>A-B, A-C, B-D</code> above to visualize BFS &amp; DFS.</p>';
+      el.graphSpanningSvgContainer.innerHTML =
+        '<p class="empty-muted">Spanning tree will appear here.</p>';
+      el.graphBfsTableBody.innerHTML = '';
+      el.graphDfsStacksGrid.innerHTML = '';
       return;
     }
 
@@ -1880,8 +1899,87 @@
     Graph.renderSvg(el.graphSvgContainer, state.graphLayout, {
       order: step.order,
       current: step.current,
-      frontier: step.frontier
+      frontier: step.frontier,
+      treeEdges: step.treeEdges
     });
+
+    Graph.renderSpanningTreeSvg(
+      el.graphSpanningSvgContainer,
+      res.start,
+      step.treeEdges,
+      state.graphDirected,
+      step.current
+    );
+
+    if (isBfs) {
+      el.graphBfsTableBody.innerHTML = '';
+      res.steps.forEach((st, idx) => {
+        const tr = document.createElement('tr');
+        tr.classList.toggle('is-active-row', idx === clamped);
+
+        const tdFlag = document.createElement('td');
+        tdFlag.className = 'mono-cell';
+        tdFlag.textContent = st.visitedFlag;
+
+        const tdVertex = document.createElement('td');
+        const vChip = document.createElement('span');
+        vChip.className = 'tok-chip is-operand';
+        vChip.textContent = st.current;
+        tdVertex.appendChild(vChip);
+
+        const tdAdj = document.createElement('td');
+        tdAdj.className = 'mono-cell';
+        tdAdj.textContent = st.adjacent.length > 0 ? st.adjacent.join('  ') : '---';
+
+        const tdQ = document.createElement('td');
+        tdQ.className = 'mono-cell';
+        tdQ.textContent = st.order.join('  ');
+
+        tr.append(tdFlag, tdVertex, tdAdj, tdQ);
+        tr.addEventListener('click', () => {
+          stopGraphPlayback();
+          state.graphStepIdx = idx;
+          renderGraphStep();
+        });
+        el.graphBfsTableBody.appendChild(tr);
+      });
+    } else {
+      el.graphDfsStacksGrid.innerHTML = '';
+      res.steps.forEach((st, idx) => {
+        if (idx > 0) {
+          const arrow = document.createElement('span');
+          arrow.className = 'dfs-stack-arrow';
+          arrow.setAttribute('aria-hidden', 'true');
+          arrow.textContent = '→';
+          el.graphDfsStacksGrid.appendChild(arrow);
+        }
+
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = `dfs-stack-card${idx === clamped ? ' is-active' : ''}`;
+        card.title = `Step ${idx + 1}: ${st.current}`;
+
+        const topCell = document.createElement('div');
+        topCell.className = 'dfs-stack-cell is-vertex';
+        topCell.textContent = st.current;
+
+        const flagCell = document.createElement('div');
+        flagCell.className = 'dfs-stack-cell is-flag';
+        flagCell.textContent = st.visitedFlag;
+
+        const adjCell = document.createElement('div');
+        adjCell.className = 'dfs-stack-cell';
+        adjCell.textContent = st.adjacent.length > 0 ? st.adjacent.join(' ') : '---';
+
+        card.append(topCell, flagCell, adjCell);
+        card.addEventListener('click', () => {
+          stopGraphPlayback();
+          state.graphStepIdx = idx;
+          renderGraphStep();
+        });
+        el.graphDfsStacksGrid.appendChild(card);
+      });
+    }
   }
 
   document.addEventListener('DOMContentLoaded', init);

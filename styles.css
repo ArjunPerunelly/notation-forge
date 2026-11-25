@@ -601,6 +601,120 @@ input {
   color: var(--border-strong);
 }
 
+.graph-start-tag {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  fill: var(--accent);
+}
+
+.graph-split-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.graph-diagrams-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.graph-panel-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.graph-panel-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.graph-bfs-table-wrap {
+  max-height: 540px;
+}
+
+.dfs-stacks-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.dfs-stacks-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.dfs-stack-card {
+  min-width: 96px;
+  border: 1.5px solid var(--border-strong);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: var(--surface-inset);
+  padding: 0.35rem 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.dfs-stack-card:hover {
+  border-color: var(--accent-border);
+  transform: translateY(-2px);
+}
+
+.dfs-stack-card.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.dfs-stack-cell {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 0.22rem 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.dfs-stack-cell.is-vertex {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.dfs-stack-cell.is-flag {
+  background: var(--operand-bg);
+  color: var(--operand-fg);
+  border-color: var(--operand-border);
+}
+
+.dfs-stack-arrow {
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 1rem;
+  user-select: none;
+}
+
+@media (max-width: 960px) {
+  .graph-split-grid,
+  .outputs-grid--2,
+  .outputs-grid--4 {
+    grid-template-columns: 1fr;
+  }
+}
+
 .output-card {
   padding: 1rem 1.1rem;
   display: flex;

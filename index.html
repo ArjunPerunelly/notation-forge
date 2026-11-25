@@ -712,9 +712,10 @@
           <div class="presets-row">
             <span class="presets-label">Try preset:</span>
             <div class="presets-list" id="graphPresetsList">
-              <button type="button" class="preset-chip" data-edges="A-B, A-C, B-D, B-E, C-F, E-F" data-dir="undirected">A-B, A-C, B-D, B-E, C-F, E-F</button>
-              <button type="button" class="preset-chip" data-edges="0->1, 0->2, 1->3, 1->4, 2->5, 2->6" data-dir="directed">0&rarr;1, 0&rarr;2, 1&rarr;3, 1&rarr;4, 2&rarr;5, 2&rarr;6</button>
-              <button type="button" class="preset-chip" data-edges="1-2, 1-3, 2-4, 3-4, 4-5, 5-6" data-dir="undirected">1-2, 1-3, 2-4, 3-4, 4-5, 5-6</button>
+              <button type="button" class="preset-chip" data-edges="v1-v2, v1-v3, v2-v4, v2-v5, v3-v6, v3-v7, v4-v8, v5-v8, v6-v8, v7-v8" data-dir="undirected" data-start="v1">BFS Textbook (v1..v8)</button>
+              <button type="button" class="preset-chip" data-edges="A->F, A->B, F->D, B->C, B->G, C->F, D->C, E->C, E->D, E->J, G->C, G->E, J->D, J->K, K->E, K->G" data-dir="directed" data-start="J">DFS Textbook (Start: J)</button>
+              <button type="button" class="preset-chip" data-edges="A-B, A-C, B-D, B-E, C-F, E-F" data-dir="undirected" data-start="A">A-B, A-C, B-D, B-E, C-F, E-F</button>
+              <button type="button" class="preset-chip" data-edges="0->1, 0->2, 1->3, 1->4, 2->5, 2->6" data-dir="directed" data-start="0">0&rarr;1, 0&rarr;2, 1&rarr;3, 1&rarr;4, 2&rarr;5, 2&rarr;6</button>
             </div>
           </div>
         </section>
@@ -794,8 +795,44 @@
               <span class="meta-item">Order: <code id="graphOrderCode">—</code></span>
             </div>
 
-            <div class="tree-canvas-wrap">
-              <div class="tree-svg-container" id="graphSvgContainer"></div>
+            <div class="graph-split-grid">
+              <div class="graph-diagrams-col">
+                <div class="graph-panel-box">
+                  <div class="graph-panel-label">Original Graph</div>
+                  <div class="tree-canvas-wrap">
+                    <div class="tree-svg-container" id="graphSvgContainer"></div>
+                  </div>
+                </div>
+                <div class="graph-panel-box">
+                  <div class="graph-panel-label" id="graphSpanningLabel">Spanning Tree</div>
+                  <div class="tree-canvas-wrap">
+                    <div class="tree-svg-container" id="graphSpanningSvgContainer"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="graph-trace-col">
+                <!-- BFS Textbook Table -->
+                <div id="graphBfsTableWrap" class="trace-table-wrap graph-bfs-table-wrap">
+                  <table class="trace-table">
+                    <thead>
+                      <tr>
+                        <th>Visited</th>
+                        <th>Vertex Visited</th>
+                        <th>Adjacent</th>
+                        <th>Q</th>
+                      </tr>
+                    </thead>
+                    <tbody id="graphBfsTableBody"></tbody>
+                  </table>
+                </div>
+
+                <!-- DFS Stack Frame Progression -->
+                <div id="graphDfsStacksWrap" class="dfs-stacks-wrap is-hidden">
+                  <div class="graph-panel-label">DFS Stack Progression (Vertex &middot; Visited &middot; Adjacent)</div>
+                  <div class="dfs-stacks-grid" id="graphDfsStacksGrid"></div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
