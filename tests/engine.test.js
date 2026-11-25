@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const Engine = require('../src/engine.js');
 const Tree = require('../src/tree.js');
 const Bst = require('../src/bst.js');
+const Graph = require('../src/graph.js');
 
 test('Infix to Postfix and Prefix - classic textbook expressions', () => {
   const res1 = Engine.convert('(A + B) * (C - D)', { notation: 'infix' });
@@ -194,4 +195,21 @@ test('General Binary Tree level-order build with nulls and traversals', () => {
   assert.deepEqual(Bst.traverseInorder(root), ['4', '2', '5', '1', '3', '7']);
   assert.deepEqual(Bst.traversePreorder(root), ['1', '2', '4', '5', '3', '7']);
   assert.deepEqual(Bst.traversePostorder(root), ['4', '5', '2', '7', '3', '1']);
+  assert.deepEqual(Bst.traverseLevelOrder(root), ['1', '2', '3', '4', '5', '7']);
+});
+
+test('Graph BFS and DFS traversals on undirected and directed graphs', () => {
+  const g = Graph.parseGraph('A-B, A-C, B-D, B-E, C-F, E-F', false);
+  assert.deepEqual(g.nodes, ['A', 'B', 'C', 'D', 'E', 'F']);
+
+  const bfs = Graph.runBfs(g, 'A');
+  assert.deepEqual(bfs.order, ['A', 'B', 'C', 'D', 'E', 'F']);
+  assert.equal(bfs.steps.at(-1).frontier.length, 0);
+
+  const dfs = Graph.runDfs(g, 'A');
+  assert.deepEqual(dfs.order, ['A', 'B', 'D', 'E', 'F', 'C']);
+
+  const dg = Graph.parseGraph('0->1, 0->2, 1->3, 2->3', true);
+  assert.deepEqual(Graph.runBfs(dg, '0').order, ['0', '1', '2', '3']);
+  assert.deepEqual(Graph.runDfs(dg, '0').order, ['0', '1', '3', '2']);
 });

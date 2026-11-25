@@ -180,6 +180,19 @@
     return out;
   }
 
+  function traverseLevelOrder(node) {
+    if (!node) return [];
+    const out = [];
+    const queue = [node];
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      out.push(curr.value);
+      if (curr.left) queue.push(curr.left);
+      if (curr.right) queue.push(curr.right);
+    }
+    return out;
+  }
+
   function getStats(root) {
     if (!root) {
       return { count: 0, height: 0, min: null, max: null };
@@ -283,6 +296,7 @@
     const inorderIds = [];
     const preorderIds = [];
     const postorderIds = [];
+    const bfsIds = [];
 
     function walkIn(id) {
       if (!id) return;
@@ -312,6 +326,15 @@
     walkPre(rootEntry.id);
     walkPost(rootEntry.id);
 
+    const bfsQueue = [rootEntry.id];
+    while (bfsQueue.length > 0) {
+      const cid = bfsQueue.shift();
+      bfsIds.push(cid);
+      const cn = nodeById.get(cid);
+      if (cn.leftId) bfsQueue.push(cn.leftId);
+      if (cn.rightId) bfsQueue.push(cn.rightId);
+    }
+
     const totalCols = Math.max(1, inOrderCursor);
     const colGap = totalCols > 14 ? 50 : totalCols > 9 ? 60 : 72;
     const rowGap = 76;
@@ -338,7 +361,8 @@
       traversals: {
         inorder: inorderIds,
         preorder: preorderIds,
-        postorder: postorderIds
+        postorder: postorderIds,
+        bfs: bfsIds
       }
     };
   }
@@ -502,6 +526,7 @@
     traverseInorder,
     traversePreorder,
     traversePostorder,
+    traverseLevelOrder,
     getStats,
     searchValue,
     buildLayout,

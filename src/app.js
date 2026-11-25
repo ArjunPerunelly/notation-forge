@@ -4,6 +4,7 @@
   const Engine = window.ExprEngine;
   const Tree = window.ExprTree;
   const Bst = window.BstEngine;
+  const Graph = window.GraphEngine;
 
   const STORAGE_THEME = 'nf_theme_v1';
   const STORAGE_HISTORY = 'nf_history_v1';
@@ -47,7 +48,19 @@
     travOrder: '',
     travStep: 0,
     travTimer: null,
-    travSelectedNodeId: null
+    travSelectedNodeId: null,
+
+    // Graph BFS/DFS state
+    graphInput: 'A-B, A-C, B-D, B-E, C-F, E-F',
+    graphDirected: false,
+    graphStart: 'A',
+    graphObj: null,
+    graphLayout: null,
+    graphAlgo: 'bfs',
+    graphBfsRes: null,
+    graphDfsRes: null,
+    graphStepIdx: 0,
+    graphTimer: null
   };
 
   // DOM References
@@ -141,6 +154,7 @@
     modeConvertView: document.getElementById('modeConvertView'),
     modeBstView: document.getElementById('modeBstView'),
     modeTraversalView: document.getElementById('modeTraversalView'),
+    modeGraphView: document.getElementById('modeGraphView'),
 
     bstTypeBadge: document.getElementById('bstTypeBadge'),
     bstStatCount: document.getElementById('bstStatCount'),
@@ -165,6 +179,7 @@
     travOutInorder: document.getElementById('travOutInorder'),
     travOutPreorder: document.getElementById('travOutPreorder'),
     travOutPostorder: document.getElementById('travOutPostorder'),
+    travOutBfs: document.getElementById('travOutBfs'),
     travOrderGroup: document.getElementById('travOrderGroup'),
     travPlayerControls: document.getElementById('travPlayerControls'),
     travResetBtn: document.getElementById('travResetBtn'),
@@ -177,7 +192,31 @@
     travOutputLabel: document.getElementById('travOutputLabel'),
     travOutputTokens: document.getElementById('travOutputTokens'),
     travSvgContainer: document.getElementById('travSvgContainer'),
-    travSubtreeInspector: document.getElementById('travSubtreeInspector')
+    travSubtreeInspector: document.getElementById('travSubtreeInspector'),
+
+    graphDirGroup: document.getElementById('graphDirGroup'),
+    graphStatsBadge: document.getElementById('graphStatsBadge'),
+    graphStartSelect: document.getElementById('graphStartSelect'),
+    graphInputWrap: document.getElementById('graphInputWrap'),
+    graphEdgeInput: document.getElementById('graphEdgeInput'),
+    graphClearBtn: document.getElementById('graphClearBtn'),
+    graphErrorBanner: document.getElementById('graphErrorBanner'),
+    graphErrorMsg: document.getElementById('graphErrorMsg'),
+    graphPresetsList: document.getElementById('graphPresetsList'),
+    graphOutBfs: document.getElementById('graphOutBfs'),
+    graphOutDfs: document.getElementById('graphOutDfs'),
+    graphAlgoGroup: document.getElementById('graphAlgoGroup'),
+    graphResetBtn: document.getElementById('graphResetBtn'),
+    graphPrevBtn: document.getElementById('graphPrevBtn'),
+    graphPlayBtn: document.getElementById('graphPlayBtn'),
+    graphNextBtn: document.getElementById('graphNextBtn'),
+    graphAllBtn: document.getElementById('graphAllBtn'),
+    graphStepCounter: document.getElementById('graphStepCounter'),
+    graphStepAction: document.getElementById('graphStepAction'),
+    graphFrontierLabel: document.getElementById('graphFrontierLabel'),
+    graphFrontierCode: document.getElementById('graphFrontierCode'),
+    graphOrderCode: document.getElementById('graphOrderCode'),
+    graphSvgContainer: document.getElementById('graphSvgContainer')
   };
 
   let historySaveTimer = null;
@@ -189,6 +228,7 @@
     recompute();
     recomputeBst();
     recomputeTraversalTree();
+    recomputeGraph();
   }
 
   function loadTheme() {
@@ -687,17 +727,122 @@
         }
       }, 650);
     });
+
+    // Graph BFS/DFS Events
+    el.graphDirGroup.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-graph-dir]');
+      if (!btn) return;
+      state.graphDirected = btn.dataset.graphDir === 'directed';
+      updateSegmented(el.graphDirGroup, 'graphDir', btn.dataset.graphDir);
+      recomputeGraph();
+    });
+
+    el.graphStartSelect.addEventListener('change', () => {
+      state.graphStart = el.graphStartSelect.value;
+      recomputeGraph();
+    });
+
+    el.graphEdgeInput.addEventListener('input', () => {
+      state.graphInput = el.graphEdgeInput.value;
+      recomputeGraph();
+    });
+
+    el.graphClearBtn.addEventListener('click', () => {
+      state.graphInput = '';
+      el.graphEdgeInput.value = '';
+      recomputeGraph();
+      el.graphEdgeInput.focus();
+    });
+
+    el.graphPresetsList.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-edges]');
+      if (!chip) return;
+      state.graphInput = chip.dataset.edges;
+      state.graphDirected = chip.dataset.dir === 'directed';
+      el.graphEdgeInput.value = state.graphInput;
+      updateSegmented(el.graphDirGroup, 'graphDir', state.graphDirected ? 'directed' : 'undirected');
+      recomputeGraph();
+    });
+
+    el.graphAlgoGroup.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-graph-algo]');
+      if (!btn) return;
+      stopGraphPlayback();
+      state.graphAlgo = btn.dataset.graphAlgo;
+      updateSegmented(el.graphAlgoGroup, 'graphAlgo', state.graphAlgo);
+      const res = state.graphAlgo === 'bfs' ? state.graphBfsRes : state.graphDfsRes;
+      state.graphStepIdx = res && res.steps.length > 0 ? res.steps.length - 1 : 0;
+      renderGraphStep();
+    });
+
+    el.graphResetBtn.addEventListener('click', () => {
+      stopGraphPlayback();
+      state.graphStepIdx = 0;
+      renderGraphStep();
+    });
+
+    el.graphPrevBtn.addEventListener('click', () => {
+      stopGraphPlayback();
+      state.graphStepIdx = Math.max(0, state.graphStepIdx - 1);
+      renderGraphStep();
+    });
+
+    el.graphNextBtn.addEventListener('click', () => {
+      stopGraphPlayback();
+      const res = state.graphAlgo === 'bfs' ? state.graphBfsRes : state.graphDfsRes;
+      const maxIdx = res && res.steps.length > 0 ? res.steps.length - 1 : 0;
+      state.graphStepIdx = Math.min(maxIdx, state.graphStepIdx + 1);
+      renderGraphStep();
+    });
+
+    el.graphAllBtn.addEventListener('click', () => {
+      stopGraphPlayback();
+      const res = state.graphAlgo === 'bfs' ? state.graphBfsRes : state.graphDfsRes;
+      const maxIdx = res && res.steps.length > 0 ? res.steps.length - 1 : 0;
+      state.graphStepIdx = maxIdx;
+      renderGraphStep();
+    });
+
+    el.graphPlayBtn.addEventListener('click', () => {
+      const res = state.graphAlgo === 'bfs' ? state.graphBfsRes : state.graphDfsRes;
+      if (!res || res.steps.length === 0) return;
+      if (state.graphTimer) {
+        stopGraphPlayback();
+        return;
+      }
+      const maxIdx = res.steps.length - 1;
+      if (state.graphStepIdx >= maxIdx) {
+        state.graphStepIdx = 0;
+        renderGraphStep();
+      }
+      el.graphPlayBtn.textContent = 'Pause';
+      state.graphTimer = setInterval(() => {
+        const activeRes = state.graphAlgo === 'bfs' ? state.graphBfsRes : state.graphDfsRes;
+        if (!activeRes) {
+          stopGraphPlayback();
+          return;
+        }
+        if (state.graphStepIdx < activeRes.steps.length - 1) {
+          state.graphStepIdx += 1;
+          renderGraphStep();
+        } else {
+          stopGraphPlayback();
+        }
+      }, 750);
+    });
   }
 
   function switchAppMode(mode) {
     stopTracePlayback();
     stopTreePlayback();
     stopTravPlayback();
+    stopGraphPlayback();
     state.appMode = mode;
     updateSegmented(el.appModeGroup, 'appMode', mode);
     el.modeConvertView.classList.toggle('is-hidden', mode !== 'convert');
     el.modeBstView.classList.toggle('is-hidden', mode !== 'bst');
     el.modeTraversalView.classList.toggle('is-hidden', mode !== 'traversal');
+    el.modeGraphView.classList.toggle('is-hidden', mode !== 'graph');
     el.assocToggleWrap.classList.toggle('is-hidden', mode !== 'convert');
   }
 
@@ -1522,6 +1667,7 @@
       el.travOutInorder.textContent = '—';
       el.travOutPreorder.textContent = '—';
       el.travOutPostorder.textContent = '—';
+      el.travOutBfs.textContent = '—';
       state.travLayout = null;
       renderTraversalTree();
       return;
@@ -1532,6 +1678,7 @@
     el.travOutInorder.textContent = Bst.traverseInorder(root).join(' ');
     el.travOutPreorder.textContent = Bst.traversePreorder(root).join(' ');
     el.travOutPostorder.textContent = Bst.traversePostorder(root).join(' ');
+    el.travOutBfs.textContent = Bst.traverseLevelOrder(root).join(' ');
 
     state.travLayout = Bst.buildLayout(root);
     if (state.travOrder && state.travLayout) {
@@ -1567,7 +1714,8 @@
       const labelMap = {
         inorder: 'In-order (LNR):',
         preorder: 'Pre-order (NLR):',
-        postorder: 'Post-order (LRN):'
+        postorder: 'Post-order (LRN):',
+        bfs: 'BFS (Level-order):'
       };
       el.travOutputLabel.textContent = labelMap[mode] || 'Order:';
       el.travOutputTokens.innerHTML = '';
@@ -1631,6 +1779,108 @@
       code.textContent = val;
       wrap.append(strong, code);
       el.travSubtreeInspector.appendChild(wrap);
+    });
+  }
+
+  // ===== Graph BFS / DFS Controller =====
+
+  function stopGraphPlayback() {
+    if (state.graphTimer) {
+      clearInterval(state.graphTimer);
+      state.graphTimer = null;
+    }
+    el.graphPlayBtn.textContent = 'Animate';
+  }
+
+  function recomputeGraph() {
+    stopGraphPlayback();
+    try {
+      const g = Graph.parseGraph(state.graphInput, state.graphDirected);
+      state.graphObj = g;
+      el.graphInputWrap.classList.remove('has-error');
+      el.graphErrorBanner.classList.add('is-hidden');
+
+      el.graphStatsBadge.textContent = `${g.nodes.length} node${g.nodes.length === 1 ? '' : 's'} · ${g.edges.length} edge${g.edges.length === 1 ? '' : 's'}`;
+
+      // Populate start node select
+      el.graphStartSelect.innerHTML = '';
+      if (g.nodes.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '—';
+        el.graphStartSelect.appendChild(opt);
+        state.graphStart = '';
+        state.graphLayout = null;
+        state.graphBfsRes = null;
+        state.graphDfsRes = null;
+        el.graphOutBfs.textContent = '—';
+        el.graphOutDfs.textContent = '—';
+        renderGraphStep();
+        return;
+      }
+
+      if (!g.adj.has(state.graphStart)) {
+        state.graphStart = g.nodes[0];
+      }
+      g.nodes.forEach((n) => {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        opt.selected = n === state.graphStart;
+        el.graphStartSelect.appendChild(opt);
+      });
+
+      state.graphBfsRes = Graph.runBfs(g, state.graphStart);
+      state.graphDfsRes = Graph.runDfs(g, state.graphStart);
+      state.graphLayout = Graph.buildLayout(g, state.graphStart);
+
+      el.graphOutBfs.textContent = state.graphBfsRes.order.join(' ');
+      el.graphOutDfs.textContent = state.graphDfsRes.order.join(' ');
+
+      const activeRes = state.graphAlgo === 'bfs' ? state.graphBfsRes : state.graphDfsRes;
+      state.graphStepIdx = activeRes && activeRes.steps.length > 0 ? activeRes.steps.length - 1 : 0;
+      renderGraphStep();
+    } catch (err) {
+      state.graphObj = null;
+      state.graphLayout = null;
+      state.graphBfsRes = null;
+      state.graphDfsRes = null;
+      el.graphInputWrap.classList.add('has-error');
+      el.graphErrorBanner.classList.remove('is-hidden');
+      el.graphErrorMsg.textContent = err.message || 'Invalid graph edge format.';
+      el.graphOutBfs.textContent = '—';
+      el.graphOutDfs.textContent = '—';
+      renderGraphStep();
+    }
+  }
+
+  function renderGraphStep() {
+    const res = state.graphAlgo === 'bfs' ? state.graphBfsRes : state.graphDfsRes;
+    el.graphFrontierLabel.textContent = state.graphAlgo === 'bfs' ? 'Queue' : 'Stack';
+
+    if (!state.graphLayout || !res || res.steps.length === 0) {
+      el.graphStepCounter.textContent = '0 / 0';
+      el.graphStepAction.textContent = '—';
+      el.graphFrontierCode.textContent = '∅';
+      el.graphOrderCode.textContent = '—';
+      el.graphSvgContainer.innerHTML =
+        '<p class="empty-muted">Enter edges like <code>A-B, A-C, B-D</code> above to visualize BFS &amp; DFS.</p>';
+      return;
+    }
+
+    const clamped = Math.max(0, Math.min(state.graphStepIdx, res.steps.length - 1));
+    state.graphStepIdx = clamped;
+    const step = res.steps[clamped];
+
+    el.graphStepCounter.textContent = `${clamped + 1} / ${res.steps.length}`;
+    el.graphStepAction.textContent = step.action;
+    el.graphFrontierCode.textContent = step.frontier.length > 0 ? step.frontier.join(' ') : '∅';
+    el.graphOrderCode.textContent = step.order.length > 0 ? step.order.join(' → ') : '—';
+
+    Graph.renderSvg(el.graphSvgContainer, state.graphLayout, {
+      order: step.order,
+      current: step.current,
+      frontier: step.frontier
     });
   }
 
