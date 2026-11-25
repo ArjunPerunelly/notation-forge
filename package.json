@@ -1,0 +1,9 @@
+{
+  "name": "notation-forge",
+  "version": "1.0.0",
+  "description": "Interactive Infix, Postfix (RPN), and Prefix (Polish) expression converter with stack trace, AST visualizer, and evaluator.",
+  "scripts": {
+    "test": "node --test tests/engine.test.js",
+    "start": "node server.js"
+  }
+}

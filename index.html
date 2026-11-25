@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NotationForge — Infix, Postfix &amp; Prefix Expression Converter</title>
+  <meta name="description" content="Convert mathematical and algebraic expressions between Infix, Postfix (RPN), and Prefix (Polish) notations with step-by-step stack traces, AST expression trees, and evaluation." />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="src/engine.js"></script>
+  <script defer src="src/tree.js"></script>
+  <script defer src="src/bst.js"></script>
+  <script defer src="src/app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Header -->
+    <header class="site-header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+            <rect x="2" y="2" width="28" height="28" rx="8" fill="currentColor" fill-opacity="0.12" stroke="currentColor" stroke-width="1.75" />
+            <circle cx="16" cy="9.5" r="3" fill="currentColor" />
+            <circle cx="9.5" cy="21.5" r="3" stroke="currentColor" stroke-width="1.8" />
+            <circle cx="22.5" cy="21.5" r="3" stroke="currentColor" stroke-width="1.8" />
+            <path d="M14.3 12L10.8 18.8M17.7 12L21.2 18.8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">NotationForge</h1>
+          <p class="brand-subtitle">Infix &middot; Postfix (RPN) &middot; Prefix (Polish) Converter</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="segmented mode-switcher" role="group" aria-label="Workspace mode" id="appModeGroup">
+          <button type="button" class="seg-btn is-active" data-app-mode="convert">Expression Converter</button>
+          <button type="button" class="seg-btn" data-app-mode="bst">BST</button>
+          <button type="button" class="seg-btn" data-app-mode="traversal">In-order / Pre / Post</button>
+        </div>
+        <div class="assoc-toggle" id="assocToggleWrap" title="Associativity of exponentiation operator (^ and $)">
+          <span class="assoc-label">^ Assoc:</span>
+          <button type="button" class="pill-btn is-active" id="assocRightBtn" data-assoc="right">Right</button>
+          <button type="button" class="pill-btn" id="assocLeftBtn" data-assoc="left">Left</button>
+        </div>
+        <button type="button" class="icon-btn" id="themeToggleBtn" aria-label="Toggle dark or light theme" title="Toggle theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <span class="theme-text">Theme</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div id="modeConvertView" class="mode-view">
+      <!-- Input Studio -->
+      <section class="card input-studio" aria-label="Expression Input">
+        <div class="input-controls-row">
+          <div class="control-group">
+            <span class="control-label">Input Notation</span>
+            <div class="segmented" role="group" aria-label="Input notation mode" id="notationGroup">
+              <button type="button" class="seg-btn is-active" data-notation="auto">Auto</button>
+              <button type="button" class="seg-btn" data-notation="infix">Infix</button>
+              <button type="button" class="seg-btn" data-notation="postfix">Postfix</button>
+              <button type="button" class="seg-btn" data-notation="prefix">Prefix</button>
+            </div>
+            <span class="detected-badge" id="detectedBadge" aria-live="polite">Detected: Infix</span>
+          </div>
+
+          <div class="control-group">
+            <span class="control-label">Tokens</span>
+            <div class="segmented" role="group" aria-label="Tokenization mode" id="tokenModeGroup">
+              <button type="button" class="seg-btn is-active" data-token-mode="auto" title="Multi-char in Infix or spaced Postfix/Prefix; single-char when spaceless Postfix/Prefix">Auto</button>
+              <button type="button" class="seg-btn" data-token-mode="single" title="Every character is a separate operand/operator (e.g. AB+)">Single-Char</button>
+              <button type="button" class="seg-btn" data-token-mode="space" title="Space-separated multi-char tokens (e.g. alpha beta +)">Spaced</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-box-wrap" id="inputBoxWrap">
+          <label for="exprInput" class="sr-only">Enter mathematical or algebraic expression</label>
+          <input
+            id="exprInput"
+            class="expr-input"
+            type="text"
+            value="(A + B) * (C - D)"
+            placeholder="Type an expression, e.g. (A + B) * C, AB+C*, or * + A B C"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+          />
+          <button type="button" class="clear-btn" id="clearInputBtn" aria-label="Clear expression" title="Clear input">&times;</button>
+        </div>
+
+        <!-- Status / Error / Token Pills -->
+        <div class="input-feedback" id="inputFeedback" aria-live="polite">
+          <div class="token-strip-wrap" id="tokenStripWrap">
+            <span class="token-strip-label">Tokens:</span>
+            <div class="token-strip" id="tokenStrip"></div>
+          </div>
+          <div class="error-banner is-hidden" id="errorBanner" role="alert">
+            <div class="error-title" id="errorMsg"></div>
+            <div class="error-hint is-hidden" id="errorHint"></div>
+          </div>
+        </div>
+
+        <!-- Presets -->
+        <div class="presets-row">
+          <span class="presets-label">Try preset:</span>
+          <div class="presets-list" id="presetsList">
+            <button type="button" class="preset-chip" data-expr="(A + B) * (C - D)" data-notation="auto">(A + B) * (C - D)</button>
+            <button type="button" class="preset-chip" data-expr="A + B * C ^ D ^ E - F" data-notation="auto">A + B * C ^ D ^ E - F</button>
+            <button type="button" class="preset-chip" data-expr="(12 + 8) * 3 - 4 ^ 2 / 2" data-notation="auto">(12 + 8) * 3 - 4 ^ 2 / 2</button>
+            <button type="button" class="preset-chip" data-expr="A B C * + D E / -" data-notation="auto">A B C * + D E / -</button>
+            <button type="button" class="preset-chip" data-expr="- + A * B C / D E" data-notation="auto">- + A * B C / D E</button>
+            <button type="button" class="preset-chip" data-expr="AB+CD-*" data-notation="auto">AB+CD-*</button>
+            <button type="button" class="preset-chip" data-expr="((alpha + 5) * beta) / (gamma - 2)" data-notation="auto">((alpha + 5) * beta) / (gamma - 2)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 Output Cards -->
+      <section class="outputs-grid" aria-label="Converted Expressions">
+        <!-- Infix Card -->
+        <article class="card output-card" id="cardInfix">
+          <div class="output-card-head">
+            <div class="output-title-wrap">
+              <h2 class="output-title">Infix</h2>
+              <span class="output-sub">Standard &middot; Operator between</span>
+            </div>
+            <span class="source-tag is-hidden" id="sourceTagInfix">Input</span>
+          </div>
+          <div class="output-value-box">
+            <code class="output-code" id="outInfix">—</code>
+          </div>
+          <div class="output-card-foot">
+            <div class="output-toggles">
+              <button type="button" class="mini-toggle" id="infixParensToggle" title="Toggle minimal vs fully parenthesized infix">Full ( )</button>
+              <button type="button" class="mini-toggle" id="infixCompactToggle" title="Toggle spaces">Compact</button>
+            </div>
+            <div class="output-actions">
+              <button type="button" class="action-btn" data-use-notation="infix" title="Load this Infix output into input">Use</button>
+              <button type="button" class="action-btn copy-btn" data-copy-target="outInfix">Copy</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Postfix Card -->
+        <article class="card output-card" id="cardPostfix">
+          <div class="output-card-head">
+            <div class="output-title-wrap">
+              <h2 class="output-title">Postfix</h2>
+              <span class="output-sub">Reverse Polish (RPN) &middot; Operator after</span>
+            </div>
+            <span class="source-tag is-hidden" id="sourceTagPostfix">Input</span>
+          </div>
+          <div class="output-value-box">
+            <code class="output-code" id="outPostfix">—</code>
+          </div>
+          <div class="output-card-foot">
+            <div class="output-toggles">
+              <button type="button" class="mini-toggle" id="postfixCompactToggle" title="Toggle spaces between tokens">Compact</button>
+            </div>
+            <div class="output-actions">
+              <button type="button" class="action-btn" data-use-notation="postfix" title="Load this Postfix output into input">Use</button>
+              <button type="button" class="action-btn copy-btn" data-copy-target="outPostfix">Copy</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Prefix Card -->
+        <article class="card output-card" id="cardPrefix">
+          <div class="output-card-head">
+            <div class="output-title-wrap">
+              <h2 class="output-title">Prefix</h2>
+              <span class="output-sub">Polish Notation &middot; Operator before</span>
+            </div>
+            <span class="source-tag is-hidden" id="sourceTagPrefix">Input</span>
+          </div>
+          <div class="output-value-box">
+            <code class="output-code" id="outPrefix">—</code>
+          </div>
+          <div class="output-card-foot">
+            <div class="output-toggles">
+              <button type="button" class="mini-toggle" id="prefixCompactToggle" title="Toggle spaces between tokens">Compact</button>
+            </div>
+            <div class="output-actions">
+              <button type="button" class="action-btn" data-use-notation="prefix" title="Load this Prefix output into input">Use</button>
+              <button type="button" class="action-btn copy-btn" data-copy-target="outPrefix">Copy</button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Interactive Inspection Workbench -->
+      <section class="card workbench-card" aria-label="Algorithm Visualizer and Tools">
+        <div class="tabs-bar" role="tablist" aria-label="Visualization modes">
+          <button type="button" class="tab-btn is-active" role="tab" aria-selected="true" data-tab="trace">
+            Step-by-Step Stack Trace
+          </button>
+          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="tree">
+            Expression Tree (AST)
+          </button>
+          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="evaluate">
+            Evaluate <span class="tab-badge" id="evalBadge"></span>
+          </button>
+          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="reference">
+            Reference &amp; History
+          </button>
+        </div>
+
+        <!-- TAB 1: Stack Trace -->
+        <div class="tab-panel is-active" id="panelTrace" role="tabpanel">
+          <div class="trace-toolbar">
+            <div class="trace-kind-pills" id="traceKindGroup" role="group" aria-label="Select conversion trace">
+              <button type="button" class="pill-btn is-active" data-trace="infix-to-postfix">Infix &rarr; Postfix</button>
+              <button type="button" class="pill-btn" data-trace="infix-to-prefix">Infix &rarr; Prefix</button>
+              <button type="button" class="pill-btn" data-trace="postfix-to-infix">Postfix &rarr; Infix</button>
+              <button type="button" class="pill-btn" data-trace="postfix-to-prefix">Postfix &rarr; Prefix</button>
+              <button type="button" class="pill-btn" data-trace="prefix-to-infix">Prefix &rarr; Infix</button>
+              <button type="button" class="pill-btn" data-trace="prefix-to-postfix">Prefix &rarr; Postfix</button>
+            </div>
+
+            <div class="player-controls" aria-label="Step player controls">
+              <button type="button" class="player-btn" id="stepFirstBtn" title="First step">|&lsaquo;</button>
+              <button type="button" class="player-btn" id="stepPrevBtn" title="Previous step">&lsaquo;</button>
+              <button type="button" class="player-btn is-primary" id="stepPlayBtn" title="Play or pause trace">Play</button>
+              <button type="button" class="player-btn" id="stepNextBtn" title="Next step">&rsaquo;</button>
+              <button type="button" class="player-btn" id="stepLastBtn" title="Final step">&rsaquo;|</button>
+              <span class="step-counter" id="stepCounter">Step 0 / 0</span>
+            </div>
+          </div>
+
+          <div class="trace-meta-bar" id="traceMetaBar">
+            <span class="meta-item"><strong id="traceAlgoName">Shunting-Yard Algorithm</strong></span>
+            <span class="meta-dot">&bull;</span>
+            <span class="meta-item">Scan: <strong id="traceScanDir">Left &rarr; Right</strong></span>
+            <span class="meta-item is-hidden" id="reversedInfixWrap">
+              <span class="meta-dot">&bull;</span>
+              Reversed &amp; Swapped: <code id="reversedInfixCode"></code>
+            </span>
+          </div>
+
+          <div class="trace-workspace" id="traceWorkspace">
+            <!-- Visual Stack Bucket -->
+            <div class="stack-inspector">
+              <div class="stack-inspector-head">
+                <span class="inspector-title" id="visualStackTitle">Operator Stack</span>
+                <span class="stack-depth" id="visualStackDepth">0 items</span>
+              </div>
+              <div class="stack-bucket" id="visualStackBucket" aria-live="polite">
+                <div class="stack-empty-hint">Empty stack</div>
+              </div>
+              <div class="step-detail-box">
+                <div class="step-detail-label">Current Action</div>
+                <div class="step-detail-text" id="currentStepAction">—</div>
+                <div class="step-detail-label" style="margin-top: 0.65rem;" id="visualOutputLabel">Output Buffer</div>
+                <code class="step-output-preview" id="currentStepOutput">—</code>
+              </div>
+            </div>
+
+            <!-- Trace Table -->
+            <div class="trace-table-wrap">
+              <table class="trace-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Token</th>
+                    <th>Action</th>
+                    <th id="tableStackCol">Stack</th>
+                    <th id="tableOutputCol">Output</th>
+                  </tr>
+                </thead>
+                <tbody id="traceTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: Expression Tree (AST) -->
+        <div class="tab-panel" id="panelTree" role="tabpanel">
+          <div class="tree-toolbar">
+            <div class="control-group">
+              <span class="control-label">Traversal Order</span>
+              <div class="segmented" id="treeTraversalGroup">
+                <button type="button" class="seg-btn is-active" data-traversal="">Structure</button>
+                <button type="button" class="seg-btn" data-traversal="preorder">Pre-order (Prefix)</button>
+                <button type="button" class="seg-btn" data-traversal="inorder">In-order (Infix)</button>
+                <button type="button" class="seg-btn" data-traversal="postorder">Post-order (Postfix)</button>
+              </div>
+            </div>
+
+            <div class="player-controls is-hidden" id="treePlayerControls">
+              <button type="button" class="player-btn" id="treeResetBtn" title="Reset traversal">|&lsaquo;</button>
+              <button type="button" class="player-btn" id="treePrevBtn" title="Previous node">&lsaquo;</button>
+              <button type="button" class="player-btn is-primary" id="treePlayBtn" title="Animate traversal">Animate</button>
+              <button type="button" class="player-btn" id="treeNextBtn" title="Next node">&rsaquo;</button>
+              <button type="button" class="player-btn" id="treeAllBtn" title="Show all">&rsaquo;|</button>
+              <span class="step-counter" id="treeStepCounter">0 / 0</span>
+            </div>
+          </div>
+
+          <div class="tree-traversal-output is-hidden" id="treeTraversalOutput">
+            <span class="control-label" id="treeTraversalLabel">Order:</span>
+            <div class="traversal-tokens" id="treeTraversalTokens"></div>
+          </div>
+
+          <div class="tree-canvas-wrap" id="treeCanvasWrap">
+            <div class="tree-svg-container" id="treeSvgContainer"></div>
+          </div>
+
+          <div class="subtree-inspector" id="subtreeInspector">
+            <span class="subtree-hint">Tip: Click any node in the tree to inspect its sub-expression in all three notations.</span>
+          </div>
+        </div>
+
+        <!-- TAB 3: Evaluate & Variables -->
+        <div class="tab-panel" id="panelEvaluate" role="tabpanel">
+          <div class="eval-grid">
+            <div class="eval-inputs-panel">
+              <div class="eval-panel-head">
+                <h3>Operand Values</h3>
+                <div class="eval-btn-row">
+                  <button type="button" class="action-btn" id="fillSampleVarsBtn">Fill Samples</button>
+                  <button type="button" class="action-btn" id="clearVarsBtn">Clear</button>
+                </div>
+              </div>
+              <div id="variablesContainer" class="variables-list"></div>
+              <div class="eval-result-card" id="evalResultCard">
+                <div class="eval-result-label">Evaluated Result</div>
+                <div class="eval-result-value" id="evalResultValue">—</div>
+                <div class="eval-result-note" id="evalResultNote"></div>
+              </div>
+            </div>
+
+            <div class="eval-trace-panel">
+              <h3>Postfix Evaluation Trace (Left &rarr; Right)</h3>
+              <div class="trace-table-wrap">
+                <table class="trace-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Token</th>
+                      <th>Operation</th>
+                      <th>Value Stack</th>
+                    </tr>
+                  </thead>
+                  <tbody id="evalTraceBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: Reference & History -->
+        <div class="tab-panel" id="panelReference" role="tabpanel">
+          <div class="reference-grid">
+            <div class="ref-section">
+              <h3>Operator Precedence &amp; Associativity</h3>
+              <table class="ref-table">
+                <thead>
+                  <tr>
+                    <th>Operator</th>
+                    <th>Operation</th>
+                    <th>Precedence</th>
+                    <th>Associativity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>^</code> or <code>$</code></td>
+                    <td>Exponentiation</td>
+                    <td>3 (Highest)</td>
+                    <td id="refPowAssoc">Right-to-Left</td>
+                  </tr>
+                  <tr>
+                    <td><code>*</code>, <code>/</code>, <code>%</code></td>
+                    <td>Multiply, Divide, Modulo</td>
+                    <td>2</td>
+                    <td>Left-to-Right</td>
+                  </tr>
+                  <tr>
+                    <td><code>+</code>, <code>-</code></td>
+                    <td>Add, Subtract</td>
+                    <td>1 (Lowest)</td>
+                    <td>Left-to-Right</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h3 style="margin-top: 1.5rem;">Notation Quick Guide</h3>
+              <div class="guide-cards">
+                <div class="guide-item">
+                  <strong>Infix</strong> (<code>A + B</code>): Operator sits between operands. Requires parentheses and precedence rules to remove ambiguity.
+                </div>
+                <div class="guide-item">
+                  <strong>Postfix / RPN</strong> (<code>A B +</code>): Operator follows operands. Evaluated left-to-right with a single stack; no parentheses needed.
+                </div>
+                <div class="guide-item">
+                  <strong>Prefix / Polish</strong> (<code>+ A B</code>): Operator precedes operands. Evaluated right-to-left (or recursively); no parentheses needed.
+                </div>
+              </div>
+            </div>
+
+            <div class="ref-section">
+              <div class="history-head">
+                <h3>Recent Conversions</h3>
+                <button type="button" class="action-btn" id="clearHistoryBtn">Clear History</button>
+              </div>
+              <div class="history-list" id="historyList">
+                <p class="empty-muted">No recent conversions yet.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      </div><!-- /#modeConvertView -->
+
+      <!-- BST Mode (Binary Search Tree Operations & Structure) -->
+      <div id="modeBstView" class="mode-view is-hidden">
+        <section class="card input-studio" aria-label="Binary Search Tree Input">
+          <div class="input-controls-row">
+            <div class="control-group">
+              <span class="control-label">Binary Search Tree (BST)</span>
+              <span class="detected-badge" id="bstTypeBadge">Numeric BST</span>
+            </div>
+            <div class="bst-stats-row" id="bstStatsRow">
+              <span class="stat-pill">Nodes: <strong id="bstStatCount">0</strong></span>
+              <span class="stat-pill">Height: <strong id="bstStatHeight">0</strong></span>
+              <span class="stat-pill">Min: <strong id="bstStatMin">—</strong></span>
+              <span class="stat-pill">Max: <strong id="bstStatMax">—</strong></span>
+            </div>
+          </div>
+
+          <div class="input-box-wrap">
+            <label for="bstListInput" class="sr-only">Enter comma or space separated BST values</label>
+            <input
+              id="bstListInput"
+              class="expr-input"
+              type="text"
+              value="50, 30, 70, 20, 40, 60, 80"
+              placeholder="Enter numbers or letters, e.g. 50, 30, 70, 20, 40, 60, 80"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="button" class="clear-btn" id="bstClearBtn" aria-label="Clear BST values" title="Clear BST">&times;</button>
+          </div>
+
+          <div class="bst-ops-row">
+            <div class="bst-op-group">
+              <label for="bstOpInput" class="sr-only">Single value for Insert, Delete, or Search</label>
+              <input
+                id="bstOpInput"
+                class="bst-op-input"
+                type="text"
+                placeholder="Value (e.g. 45)"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button type="button" class="action-btn is-primary-soft" id="bstInsertBtn">+ Insert</button>
+              <button type="button" class="action-btn" id="bstDeleteBtn">- Delete</button>
+              <button type="button" class="action-btn" id="bstSearchBtn">Search</button>
+            </div>
+            <span class="bst-op-status" id="bstOpStatus" aria-live="polite"></span>
+          </div>
+
+          <div class="presets-row">
+            <span class="presets-label">Try preset:</span>
+            <div class="presets-list" id="bstPresetsList">
+              <button type="button" class="preset-chip" data-bst="50, 30, 70, 20, 40, 60, 80">50, 30, 70, 20, 40, 60, 80</button>
+              <button type="button" class="preset-chip" data-bst="45, 15, 79, 90, 10, 55, 12, 20, 50">45, 15, 79, 90, 10, 55, 12, 20, 50</button>
+              <button type="button" class="preset-chip" data-bst="10, 20, 30, 40, 50">10, 20, 30, 40, 50 (Skewed)</button>
+              <button type="button" class="preset-chip" data-bst="M, F, T, B, H, P, Z">M, F, T, B, H, P, Z</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Interactive BST Diagram -->
+        <section class="card workbench-card bst-viz-card" aria-label="BST Visualization">
+          <div class="tab-panel is-active">
+            <div class="tree-canvas-wrap">
+              <div class="tree-svg-container" id="bstSvgContainer"></div>
+            </div>
+
+            <div class="subtree-inspector" id="bstSubtreeInspector">
+              <span class="subtree-hint">Tip: Click any node in the BST to inspect its depth, left/right children, and subtree size.</span>
+            </div>
+          </div>
+        </section>
+      </div><!-- /#modeBstView -->
+
+      <!-- Tree Traversals Mode (In-order, Pre-order, Post-order on any Binary Tree) -->
+      <div id="modeTraversalView" class="mode-view is-hidden">
+        <section class="card input-studio" aria-label="Binary Tree Level-Order Input">
+          <div class="input-controls-row">
+            <div class="control-group">
+              <span class="control-label">Binary Tree (Level-Order)</span>
+              <span class="detected-badge" id="travNodeBadge">7 nodes</span>
+            </div>
+            <span class="output-sub">Use <code>null</code> or <code>_</code> for empty child slots</span>
+          </div>
+
+          <div class="input-box-wrap">
+            <label for="travListInput" class="sr-only">Enter level-order binary tree nodes</label>
+            <input
+              id="travListInput"
+              class="expr-input"
+              type="text"
+              value="A, B, C, D, E, F, G"
+              placeholder="Level-order nodes, e.g. 1, 2, 3, 4, 5, null, 7"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="button" class="clear-btn" id="travClearBtn" aria-label="Clear tree" title="Clear tree">&times;</button>
+          </div>
+
+          <div class="presets-row">
+            <span class="presets-label">Try preset:</span>
+            <div class="presets-list" id="travPresetsList">
+              <button type="button" class="preset-chip" data-trav="A, B, C, D, E, F, G">A, B, C, D, E, F, G</button>
+              <button type="button" class="preset-chip" data-trav="1, 2, 3, 4, 5, null, 7">1, 2, 3, 4, 5, null, 7</button>
+              <button type="button" class="preset-chip" data-trav="10, 5, 20, 3, null, 15, 30">10, 5, 20, 3, null, 15, 30</button>
+              <button type="button" class="preset-chip" data-trav="R, L1, R1, L2, _, _, R2">R, L1, R1, L2, _, _, R2</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3 Traversal Output Cards -->
+        <section class="outputs-grid" aria-label="Binary Tree Traversals">
+          <article class="card output-card">
+            <div class="output-card-head">
+              <div class="output-title-wrap">
+                <h2 class="output-title">In-order</h2>
+                <span class="output-sub">Left &rarr; Root &rarr; Right</span>
+              </div>
+              <span class="source-tag">LNR</span>
+            </div>
+            <div class="output-value-box">
+              <code class="output-code" id="travOutInorder">—</code>
+            </div>
+            <div class="output-card-foot">
+              <span class="output-sub">Left subtree, Root, Right subtree</span>
+              <button type="button" class="action-btn copy-btn" data-copy-target="travOutInorder">Copy</button>
+            </div>
+          </article>
+
+          <article class="card output-card">
+            <div class="output-card-head">
+              <div class="output-title-wrap">
+                <h2 class="output-title">Pre-order</h2>
+                <span class="output-sub">Root &rarr; Left &rarr; Right</span>
+              </div>
+              <span class="source-tag">NLR</span>
+            </div>
+            <div class="output-value-box">
+              <code class="output-code" id="travOutPreorder">—</code>
+            </div>
+            <div class="output-card-foot">
+              <span class="output-sub">Root, Left subtree, Right subtree</span>
+              <button type="button" class="action-btn copy-btn" data-copy-target="travOutPreorder">Copy</button>
+            </div>
+          </article>
+
+          <article class="card output-card">
+            <div class="output-card-head">
+              <div class="output-title-wrap">
+                <h2 class="output-title">Post-order</h2>
+                <span class="output-sub">Left &rarr; Right &rarr; Root</span>
+              </div>
+              <span class="source-tag">LRN</span>
+            </div>
+            <div class="output-value-box">
+              <code class="output-code" id="travOutPostorder">—</code>
+            </div>
+            <div class="output-card-foot">
+              <span class="output-sub">Left subtree, Right subtree, Root</span>
+              <button type="button" class="action-btn copy-btn" data-copy-target="travOutPostorder">Copy</button>
+            </div>
+          </article>
+        </section>
+
+        <!-- Interactive Traversal Visualizer -->
+        <section class="card workbench-card" aria-label="Binary Tree Traversal Visualization">
+          <div class="tab-panel is-active">
+            <div class="tree-toolbar">
+              <div class="control-group">
+                <span class="control-label">Traversal Order</span>
+                <div class="segmented" id="travOrderGroup">
+                  <button type="button" class="seg-btn is-active" data-trav-order="">Structure</button>
+                  <button type="button" class="seg-btn" data-trav-order="inorder">In-order (LNR)</button>
+                  <button type="button" class="seg-btn" data-trav-order="preorder">Pre-order (NLR)</button>
+                  <button type="button" class="seg-btn" data-trav-order="postorder">Post-order (LRN)</button>
+                </div>
+              </div>
+
+              <div class="player-controls is-hidden" id="travPlayerControls">
+                <button type="button" class="player-btn" id="travResetBtn" title="Reset traversal">|&lsaquo;</button>
+                <button type="button" class="player-btn" id="travPrevBtn" title="Previous node">&lsaquo;</button>
+                <button type="button" class="player-btn is-primary" id="travPlayBtn" title="Animate traversal">Animate</button>
+                <button type="button" class="player-btn" id="travNextBtn" title="Next node">&rsaquo;</button>
+                <button type="button" class="player-btn" id="travAllBtn" title="Show all">&rsaquo;|</button>
+                <span class="step-counter" id="travStepCounter">0 / 0</span>
+              </div>
+            </div>
+
+            <div class="tree-traversal-output is-hidden" id="travOutputBar">
+              <span class="control-label" id="travOutputLabel">Order:</span>
+              <div class="traversal-tokens" id="travOutputTokens"></div>
+            </div>
+
+            <div class="tree-canvas-wrap">
+              <div class="tree-svg-container" id="travSvgContainer"></div>
+            </div>
+
+            <div class="subtree-inspector" id="travSubtreeInspector">
+              <span class="subtree-hint">Tip: Click any node in the tree to inspect its subtree traversals (In-order, Pre-order, Post-order).</span>
+            </div>
+          </div>
+        </section>
+      </div><!-- /#modeTraversalView -->
+    </main>
+  </div>
+</body>
+</html>
