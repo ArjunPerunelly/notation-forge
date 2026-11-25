@@ -5,13 +5,13 @@
   --surface-inset: #f0eee8;
   --border: #e1dfd6;
   --border-strong: #cbc8bc;
-  --text: #14171f;
-  --text-muted: #5a606d;
-  --text-faint: #848a96;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --text-faint: #64748b;
 
   --accent: #2563eb;
   --accent-soft: rgba(37, 99, 235, 0.1);
-  --accent-border: rgba(37, 99, 235, 0.32);
+  --accent-border: rgba(37, 99, 235, 0.35);
 
   --operand-bg: #ecfdf5;
   --operand-fg: #047857;
@@ -32,52 +32,52 @@
   --success-bg: #ecfdf5;
   --success-fg: #047857;
 
-  --shadow-sm: 0 1px 2px rgba(20, 23, 31, 0.04);
-  --shadow-md: 0 8px 24px -8px rgba(20, 23, 31, 0.08);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 10px 26px -10px rgba(15, 23, 42, 0.1);
   --radius-lg: 14px;
   --radius-md: 10px;
   --radius-sm: 7px;
 
-  --font-sans: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: "IBM Plex Sans", "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, "SFMono-Regular", Menlo, monospace;
 }
 
 [data-theme="dark"] {
-  --bg: #0d1016;
-  --surface: #151a23;
-  --surface-subtle: #1a202b;
-  --surface-inset: #10141c;
-  --border: #262e3d;
-  --border-strong: #374156;
-  --text: #eef1f7;
-  --text-muted: #9aa4b6;
-  --text-faint: #6c7689;
+  --bg: #0f172a;
+  --surface: #1b2336;
+  --surface-subtle: #222c42;
+  --surface-inset: #11192c;
+  --border: #334155;
+  --border-strong: #475569;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-faint: #94a3b8;
 
-  --accent: #60a5fa;
-  --accent-soft: rgba(96, 165, 250, 0.14);
-  --accent-border: rgba(96, 165, 250, 0.35);
+  --accent: #38bdf8;
+  --accent-soft: rgba(56, 189, 248, 0.14);
+  --accent-border: rgba(56, 189, 248, 0.4);
 
-  --operand-bg: rgba(16, 185, 129, 0.14);
-  --operand-fg: #34d399;
-  --operand-border: rgba(52, 211, 153, 0.3);
+  --operand-bg: rgba(34, 197, 94, 0.14);
+  --operand-fg: #4ade80;
+  --operand-border: rgba(74, 222, 128, 0.34);
 
   --operator-bg: rgba(245, 158, 11, 0.14);
   --operator-fg: #fbbf24;
-  --operator-border: rgba(251, 191, 36, 0.3);
+  --operator-border: rgba(251, 191, 36, 0.34);
 
-  --bracket-bg: rgba(139, 92, 246, 0.16);
+  --bracket-bg: rgba(167, 139, 250, 0.16);
   --bracket-fg: #c4b5fd;
-  --bracket-border: rgba(196, 181, 253, 0.3);
+  --bracket-border: rgba(196, 181, 253, 0.34);
 
   --danger-bg: rgba(239, 68, 68, 0.14);
   --danger-fg: #fca5a5;
-  --danger-border: rgba(248, 113, 113, 0.32);
+  --danger-border: rgba(248, 113, 113, 0.35);
 
-  --success-bg: rgba(16, 185, 129, 0.14);
-  --success-fg: #34d399;
+  --success-bg: rgba(34, 197, 94, 0.16);
+  --success-fg: #4ade80;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 10px 28px -8px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 12px 30px -10px rgba(0, 0, 0, 0.5);
 }
 
 *,
@@ -93,9 +93,16 @@ body {
   background-color: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+button:focus-visible,
+[tabindex]:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 button,
@@ -650,15 +657,20 @@ input {
 .action-btn,
 .pill-btn,
 .player-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 30px;
   border: 1px solid var(--border);
   background: var(--surface-subtle);
   color: var(--text-muted);
   border-radius: 7px;
   padding: 0.25rem 0.55rem;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.16s ease;
 }
 
 .pill-btn {
@@ -1382,5 +1394,49 @@ input {
 
   .theme-text {
     display: none;
+  }
+}
+
+/* Touch targets (WCAG / ui-ux-pro-max) */
+@media (pointer: coarse) {
+  .seg-btn,
+  .pill-btn,
+  .action-btn,
+  .mini-toggle,
+  .player-btn,
+  .preset-chip,
+  .tab-btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Stack push micro-interaction */
+@keyframes stackPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stack-item.is-top {
+  animation: stackPopIn 180ms ease-out;
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NotationForge — Infix, Postfix &amp; Prefix Expression Converter</title>
-  <meta name="description" content="Convert mathematical and algebraic expressions between Infix, Postfix (RPN), and Prefix (Polish) notations with step-by-step stack traces, AST expression trees, and evaluation." />
+  <meta name="description" content="Convert mathematical and algebraic expressions between Infix, Postfix (RPN), and Prefix (Polish) notations with step-by-step stack traces, AST expression trees, BST, and tree traversals." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script defer src="src/engine.js"></script>
   <script defer src="src/tree.js"></script>
@@ -199,22 +202,22 @@
       <!-- Interactive Inspection Workbench -->
       <section class="card workbench-card" aria-label="Algorithm Visualizer and Tools">
         <div class="tabs-bar" role="tablist" aria-label="Visualization modes">
-          <button type="button" class="tab-btn is-active" role="tab" aria-selected="true" data-tab="trace">
+          <button type="button" class="tab-btn is-active" role="tab" id="tabTrace" aria-controls="panelTrace" aria-selected="true" data-tab="trace">
             Step-by-Step Stack Trace
           </button>
-          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="tree">
+          <button type="button" class="tab-btn" role="tab" id="tabTree" aria-controls="panelTree" aria-selected="false" data-tab="tree">
             Expression Tree (AST)
           </button>
-          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="evaluate">
+          <button type="button" class="tab-btn" role="tab" id="tabEvaluate" aria-controls="panelEvaluate" aria-selected="false" data-tab="evaluate">
             Evaluate <span class="tab-badge" id="evalBadge"></span>
           </button>
-          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="reference">
+          <button type="button" class="tab-btn" role="tab" id="tabReference" aria-controls="panelReference" aria-selected="false" data-tab="reference">
             Reference &amp; History
           </button>
         </div>
 
         <!-- TAB 1: Stack Trace -->
-        <div class="tab-panel is-active" id="panelTrace" role="tabpanel">
+        <div class="tab-panel is-active" id="panelTrace" role="tabpanel" aria-labelledby="tabTrace">
           <div class="trace-toolbar">
             <div class="trace-kind-pills" id="traceKindGroup" role="group" aria-label="Select conversion trace">
               <button type="button" class="pill-btn is-active" data-trace="infix-to-postfix">Infix &rarr; Postfix</button>
@@ -226,11 +229,19 @@
             </div>
 
             <div class="player-controls" aria-label="Step player controls">
-              <button type="button" class="player-btn" id="stepFirstBtn" title="First step">|&lsaquo;</button>
-              <button type="button" class="player-btn" id="stepPrevBtn" title="Previous step">&lsaquo;</button>
+              <button type="button" class="player-btn" id="stepFirstBtn" aria-label="First step" title="First step">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+              </button>
+              <button type="button" class="player-btn" id="stepPrevBtn" aria-label="Previous step" title="Previous step">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
               <button type="button" class="player-btn is-primary" id="stepPlayBtn" title="Play or pause trace">Play</button>
-              <button type="button" class="player-btn" id="stepNextBtn" title="Next step">&rsaquo;</button>
-              <button type="button" class="player-btn" id="stepLastBtn" title="Final step">&rsaquo;|</button>
+              <button type="button" class="player-btn" id="stepNextBtn" aria-label="Next step" title="Next step">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+              <button type="button" class="player-btn" id="stepLastBtn" aria-label="Final step" title="Final step">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+              </button>
               <span class="step-counter" id="stepCounter">Step 0 / 0</span>
             </div>
           </div>
@@ -282,7 +293,7 @@
         </div>
 
         <!-- TAB 2: Expression Tree (AST) -->
-        <div class="tab-panel" id="panelTree" role="tabpanel">
+        <div class="tab-panel" id="panelTree" role="tabpanel" aria-labelledby="tabTree">
           <div class="tree-toolbar">
             <div class="control-group">
               <span class="control-label">Traversal Order</span>
@@ -295,11 +306,19 @@
             </div>
 
             <div class="player-controls is-hidden" id="treePlayerControls">
-              <button type="button" class="player-btn" id="treeResetBtn" title="Reset traversal">|&lsaquo;</button>
-              <button type="button" class="player-btn" id="treePrevBtn" title="Previous node">&lsaquo;</button>
+              <button type="button" class="player-btn" id="treeResetBtn" aria-label="Reset traversal" title="Reset traversal">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+              </button>
+              <button type="button" class="player-btn" id="treePrevBtn" aria-label="Previous node" title="Previous node">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
               <button type="button" class="player-btn is-primary" id="treePlayBtn" title="Animate traversal">Animate</button>
-              <button type="button" class="player-btn" id="treeNextBtn" title="Next node">&rsaquo;</button>
-              <button type="button" class="player-btn" id="treeAllBtn" title="Show all">&rsaquo;|</button>
+              <button type="button" class="player-btn" id="treeNextBtn" aria-label="Next node" title="Next node">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+              <button type="button" class="player-btn" id="treeAllBtn" aria-label="Show all" title="Show all">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+              </button>
               <span class="step-counter" id="treeStepCounter">0 / 0</span>
             </div>
           </div>
@@ -319,7 +338,7 @@
         </div>
 
         <!-- TAB 3: Evaluate & Variables -->
-        <div class="tab-panel" id="panelEvaluate" role="tabpanel">
+        <div class="tab-panel" id="panelEvaluate" role="tabpanel" aria-labelledby="tabEvaluate">
           <div class="eval-grid">
             <div class="eval-inputs-panel">
               <div class="eval-panel-head">
@@ -598,11 +617,19 @@
               </div>
 
               <div class="player-controls is-hidden" id="travPlayerControls">
-                <button type="button" class="player-btn" id="travResetBtn" title="Reset traversal">|&lsaquo;</button>
-                <button type="button" class="player-btn" id="travPrevBtn" title="Previous node">&lsaquo;</button>
+                <button type="button" class="player-btn" id="travResetBtn" aria-label="Reset traversal" title="Reset traversal">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+                </button>
+                <button type="button" class="player-btn" id="travPrevBtn" aria-label="Previous node" title="Previous node">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
                 <button type="button" class="player-btn is-primary" id="travPlayBtn" title="Animate traversal">Animate</button>
-                <button type="button" class="player-btn" id="travNextBtn" title="Next node">&rsaquo;</button>
-                <button type="button" class="player-btn" id="travAllBtn" title="Show all">&rsaquo;|</button>
+                <button type="button" class="player-btn" id="travNextBtn" aria-label="Next node" title="Next node">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button type="button" class="player-btn" id="travAllBtn" aria-label="Show all" title="Show all">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+                </button>
                 <span class="step-counter" id="travStepCounter">0 / 0</span>
               </div>
             </div>

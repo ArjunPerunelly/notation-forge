@@ -203,7 +203,7 @@
   }
 
   function toggleTheme() {
-    const curr = document.documentElement.getAttribute('data-theme') || 'light';
+    const curr = document.documentElement.getAttribute('data-theme') || 'dark';
     const next = curr === 'light' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', next);
     try {
@@ -385,10 +385,22 @@
       });
     });
 
-    // Tabs
-    el.tabBtns.forEach((btn) => {
+    // Tabs (with WAI-ARIA Left/Right arrow key navigation)
+    const tabList = Array.from(el.tabBtns);
+    tabList.forEach((btn, idx) => {
       btn.addEventListener('click', () => {
         switchTab(btn.dataset.tab);
+      });
+      btn.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        const nextIdx =
+          e.key === 'ArrowRight'
+            ? (idx + 1) % tabList.length
+            : (idx - 1 + tabList.length) % tabList.length;
+        const nextTab = tabList[nextIdx];
+        nextTab.focus();
+        switchTab(nextTab.dataset.tab);
       });
     });
 
@@ -985,9 +997,13 @@
     el.currentStepAction.textContent = step.action;
     el.currentStepOutput.textContent = step.output.length > 0 ? step.output.join(' ') : '—';
 
-    // Update table active row
+    // Update table active row and keep it visible during playback
     el.traceTableBody.querySelectorAll('tr').forEach((row, rIdx) => {
-      row.classList.toggle('is-active-row', rIdx === clamped);
+      const isActive = rIdx === clamped;
+      row.classList.toggle('is-active-row', isActive);
+      if (isActive && state.traceTimer) {
+        row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
     });
 
     // Update visual stack bucket (bottom-to-top)
